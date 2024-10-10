@@ -129,6 +129,7 @@
         <main>
             <div id="game-area">
                 <button id="connectWalletButton" onclick="connectWallet()">Connect Wallet</button>
+                <div id="userAddress" style="margin: 10px 0; display: none;"></div>
                 <div id="multiplier">1.00x</div>
                 <div id="countdown">Next round in: 45s</div>
                 <div class="buttons">
@@ -163,18 +164,28 @@
         let betPlaced = false;
         let betAmount = 0;
         let userAddress = '';
-        const depositAddress = "3EfHTAgiL2LchH9uvp3wXsRfSqrciNTArr"; // Replace with your Bitcoin wallet address
         const apiKey = "401019f9-514c-4cf2-8a38-cf1e188b9238"; // Your Coinbase Commerce API key
 
         async function connectWallet() {
-            // Simulate wallet connection logic
-            userAddress = depositAddress; // Mock connection for demo purposes
-            console.log('Wallet connected:', userAddress);
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    // Request account access
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    userAddress = accounts[0]; // Get the user's wallet address
+                    document.getElementById('userAddress').innerText = `Connected: ${userAddress}`;
+                    document.getElementById('userAddress').style.display = 'block';
 
-            document.getElementById('bet-amount').disabled = false;
-            document.getElementById('betButton').disabled = false;
-            document.getElementById('connectWalletButton').innerText = `Wallet Connected: ${userAddress}`;
-            document.getElementById('connectWalletButton').disabled = true;
+                    document.getElementById('bet-amount').disabled = false;
+                    document.getElementById('betButton').disabled = false;
+                    document.getElementById('connectWalletButton').innerText = `Wallet Connected: ${userAddress}`;
+                    document.getElementById('connectWalletButton').disabled = true;
+                } catch (error) {
+                    console.error("Error connecting wallet:", error);
+                    alert('Failed to connect wallet. Please try again.');
+                }
+            } else {
+                alert('Please install MetaMask!');
+            }
         }
 
         async function placeBet() {
@@ -232,26 +243,25 @@
 
         function startGame() {
             resetGame();
-            crashPoint = (Math.random() * 8 + 2).toFixed(2);
-            gameInterval = setInterval(updateMultiplier, 100);
-        }
+            crashPoint = (Math.random() * 8 + 2).toFixed(2); // Crash point between 2x and 10x
+            document.getElementById('multiplier').innerText = '1.00x';
+            timeLeft = 45;
+            startCountdown();
+            gameInterval = setInterval(() => {
+                currentMultiplier += 0.01; // Increase multiplier every second
+                document.getElementById('multiplier').innerText = `${currentMultiplier.toFixed(2)}x`;
 
-        function updateMultiplier() {
-            currentMultiplier += 0.01;
-            document.getElementById('multiplier').innerText = `${currentMultiplier.toFixed(2)}x`;
-
-            if (currentMultiplier >= crashPoint) {
-                clearInterval(gameInterval);
-                document.getElementById('message').innerText = `Crashed at ${crashPoint}x!`;
-                resetGame();
-            }
+                if (currentMultiplier >= crashPoint) {
+                    clearInterval(gameInterval);
+                    document.getElementById('message').innerText = `Game crashed at ${crashPoint}x!`;
+                    resetGame();
+                }
+            }, 1000);
         }
 
         function resetGame() {
             clearInterval(gameInterval);
             clearInterval(countdownInterval);
-            countdownInterval = null;
-            timeLeft = 45;
             currentMultiplier = 1.00;
             betPlaced = false;
             document.getElementById('betButton').disabled = false;
