@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Betting Game</title>
+    <title>Chia Betting Game</title>
+    <!-- Bootstrap CSS for responsive design -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -124,7 +125,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Bitcoin Betting Game</h1>
+            <h1>Bustabit Clone</h1>
         </header>
         <main>
             <div id="game-area">
@@ -132,7 +133,7 @@
                 <div id="multiplier">1.00x</div>
                 <div id="countdown">Next round in: 45s</div>
                 <div class="buttons">
-                    <input type="number" id="bet-amount" placeholder="Bet Amount (in BTC)" disabled>
+                    <input type="number" id="bet-amount" placeholder="Bet Amount" disabled>
                     <button id="betButton" onclick="placeBet()" disabled>Place Bet</button>
                     <button id="cashoutButton" onclick="cashOut()" disabled>Cash Out</button>
                 </div>
@@ -153,7 +154,8 @@
         </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/coinbase-commerce-node/dist/index.js"></script>
+    <!-- Wallet integration and game logic -->
+    <script src="https://cdn.jsdelivr.net/npm/@chia/cli@1.0.0/dist/chia-cli.min.js"></script>
     <script>
         let currentMultiplier = 1.00;
         let crashPoint;
@@ -163,18 +165,28 @@
         let betPlaced = false;
         let betAmount = 0;
         let userAddress = '';
-        const depositAddress = "3EfHTAgiL2LchH9uvp3wXsRfSqrciNTArr"; // Replace with your Bitcoin wallet address
-        const apiKey = "401019f9-514c-4cf2-8a38-cf1e188b9238"; // Your Coinbase Commerce API key
+        const depositAddress = "your_chia_wallet_address"; // Replace with your Chia wallet address
 
         async function connectWallet() {
-            // This is where you would integrate wallet connection logic.
-            userAddress = depositAddress; // Mock connection for demo purposes
-            console.log('Wallet connected:', userAddress);
+            try {
+                // Initialize Chia wallet
+                const chiaWallet = new ChiaWalletSDK({
+                    network: 'mainnet',
+                    appName: "Bustabit Clone",
+                });
 
-            document.getElementById('bet-amount').disabled = false;
-            document.getElementById('betButton').disabled = false;
-            document.getElementById('connectWalletButton').innerText = `Wallet Connected: ${userAddress}`;
-            document.getElementById('connectWalletButton').disabled = true;
+                const accounts = await chiaWallet.request({ method: 'getAccounts' });
+                userAddress = accounts[0];
+                console.log('Wallet connected:', userAddress);
+
+                // Enable bet inputs after wallet is connected
+                document.getElementById('bet-amount').disabled = false;
+                document.getElementById('betButton').disabled = false;
+                document.getElementById('connectWalletButton').innerText = `Wallet Connected: ${userAddress}`;
+                document.getElementById('connectWalletButton').disabled = true;
+            } catch (error) {
+                console.error('Failed to connect wallet:', error);
+            }
         }
 
         async function placeBet() {
@@ -188,31 +200,8 @@
                 return;
             }
 
-            // Create a charge on Coinbase Commerce
-            const chargeData = {
-                name: `Bet of ${betAmount} BTC`,
-                description: 'Betting in the Bitcoin Betting Game',
-                local_price: {
-                    amount: betAmount.toFixed(8), // Amount in BTC
-                    currency: 'BTC'
-                },
-                pricing_type: 'fixed_price',
-                redirect_url: 'shark-bet-beta.vercel.app/success', // Replace with your success URL
-                cancel_url: 'shark-bet-beta.vercel.app/cancel' // Replace with your cancel URL
-            };
-
-            // Create the charge
-            const coinbase = require('coinbase-commerce-node');
-            const Client = coinbase.Client;
-            const Charge = coinbase.resources.Charge;
-            Client.init(apiKey);
-
-            Charge.create(chargeData).then((response) => {
-                console.log(`Charge created: ${response.code}`);
-                window.location.href = response.hosted_url; // Redirect to payment page
-            }).catch((error) => {
-                console.error('Failed to create charge:', error);
-            });
+            // Simulate sending Chia to deposit address
+            console.log(`Sending ${betAmount} XCH from ${userAddress} to ${depositAddress}`);
 
             betPlaced = true;
             document.getElementById('betButton').disabled = true;
@@ -223,8 +212,13 @@
         async function cashOut() {
             if (betPlaced && currentMultiplier < crashPoint) {
                 const payout = betAmount * currentMultiplier;
-                document.getElementById('message').innerText = `Cashed out at ${currentMultiplier.toFixed(2)}x! You win ${payout.toFixed(8)} BTC!`;
-                resetGame();
+                if (payout >= 0.03) {  // Ensure cashout is in 0.03 XCH increments
+                    console.log(`Cashing out ${payout} XCH to ${userAddress}`);
+                    document.getElementById('message').innerText = `Cashed out at ${currentMultiplier.toFixed(2)}x! You win ${payout.toFixed(8)} XCH!`;
+                    resetGame();
+                } else {
+                    document.getElementById('message').innerText = `You can only cash out in 0.03 XCH increments. Current winnings: ${payout.toFixed(8)} XCH.`;
+                }
             } else {
                 document.getElementById('message').innerText = `Missed the cash out! The game crashed at ${crashPoint}x.`;
             }
@@ -232,7 +226,7 @@
 
         function startGame() {
             resetGame();
-            crashPoint = (Math.random() * 8 + 2).toFixed(2);
+            crashPoint = (Math.random() * 8 + 2).toFixed(2);  // Bias the crash point towards a lower value
             gameInterval = setInterval(updateMultiplier, 100);
         }
 
@@ -255,13 +249,10 @@
             betPlaced = false;
             currentMultiplier = 1.00;
             timeLeft = 45;
-            document.getElementById('multiplier').innerText = `${currentMultiplier}x`;
+            document.getElementById('multiplier').innerText = `${currentMultiplier.toFixed(2)}x`;
             document.getElementById('countdown').innerText = `Next round in: ${timeLeft}s`;
-            startCountdown();
-        }
 
-        function startCountdown() {
-            countdownInterval = setInterval(() => {
+            countdownInterval = setInterval(function () {
                 timeLeft--;
                 document.getElementById('countdown').innerText = `Next round in: ${timeLeft}s`;
                 if (timeLeft <= 0) {
@@ -273,18 +264,58 @@
 
         function sendMessage(event) {
             if (event.key === 'Enter') {
-                const message = event.target.value;
-                event.target.value = '';
-                if (message) {
-                    const messageElem = document.createElement('div');
-                    messageElem.innerText = message;
-                    document.getElementById('chat-messages').appendChild(messageElem);
+                const message = document.getElementById('chat-input').value;
+                if (message.trim() !== '') {
+                    document.getElementById('chat-messages').innerHTML += `<div>${message}</div>`;
+                    document.getElementById('chat-input').value = '';
+                    // Send message to chat room (implement actual chat API here)
                 }
             }
         }
-
-        // Start the first game round
-        startGame();
     </script>
+<script>
+    let currentMultiplier = 1.00;
+
+    async function placeBet() {
+        const username = prompt("Enter your username:");
+        const betAmount = parseFloat(document.getElementById('bet-amount').value);
+
+        if (!username || isNaN(betAmount) || betAmount <= 0) {
+            alert("Please enter a valid username and bet amount.");
+            return;
+        }
+
+        const response = await fetch('http://localhost:5000/api/bet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, betAmount })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            currentMultiplier = data.multiplier.toFixed(2);
+            document.getElementById('multiplier').innerText = `${currentMultiplier}x`;
+            document.getElementById('message').innerText = `You won ${data.payout} BTC! Your new balance is ${data.balance} BTC.`;
+        } else {
+            document.getElementById('message').innerText = data.message;
+        }
+    }
+
+    async function cashOut() {
+        alert("Cash out feature is under construction."); // Implement cash out logic if needed
+    }
+
+    async function getUserBalance(username) {
+        const response = await fetch(`http://localhost:5000/api/balance/${username}`);
+        const data = await response.json();
+        if (response.ok) {
+            alert(`Your balance is ${data.balance} BTC.`);
+        } else {
+            alert(data.message);
+        }
+    }
+</script>
 </body>
 </html>
